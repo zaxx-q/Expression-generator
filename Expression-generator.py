@@ -1182,7 +1182,7 @@ def print_example_keys_file():
 
 # Custom API configuration (optional)
 # custom_url = https://api.example.com/v1/chat/completions
-# custom_model = gpt-4-vision-preview
+# custom_model = gemini-2.5-flash-image-preview
 
 # Default provider (optional) - can be: custom, openrouter, or google
 # default_provider = custom
