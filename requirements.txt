@@ -1,0 +1,6 @@
+llvmlite==0.44.0
+numba==0.61.2
+rembg==2.0.67   # or the rembg version you need
+pillow
+requests
+numpy
