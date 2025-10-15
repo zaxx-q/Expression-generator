@@ -113,7 +113,9 @@ python expression_generator.py
 
 ```
 expressions/
-  ├── admiration.png
+  ├── orig__admiration.png  # Original generated images (with background)
+  ├── orig__joy.png
+  ├── admiration.png        # Background removed versions
   ├── joy.png
   ├── anger.png
   ├── love.png
@@ -192,6 +194,8 @@ Try different `rembg_preset` values:
 - Use `general` for most other images
 - Use `people` for realistic human portraits
 
+Note that rembg has inherent limitations and may not produce perfectly clean results even after tweaking presets and parameters. If the automatic background removal is not satisfactory, you can use the `orig__*.png` files (stored in the `expressions/` folder) and manually remove the background using other tools like Photoshop, GIMP, or online background removal services.
+
 ### Rate limit errors
 
 Add more API keys to your config.ini, or use keyboard shortcuts (`s` or `r`) to control key rotation.
@@ -203,3 +207,4 @@ Add more API keys to your config.ini, or use keyboard shortcuts (`s` or `r`) to 
 3. Experiment with custom prompt tweaks for specific styles
 4. Delete `expressions/orig__*.png` files to regenerate specific emotions
 5. Choose background type (grey/white) based on your use case
+6. If background removal isn't clean, use the `orig__*.png` files for manual editing
