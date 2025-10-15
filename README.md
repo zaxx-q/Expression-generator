@@ -2,6 +2,8 @@
 
 Automatically generate multiple emotional expressions from a single character image using AI image generation APIs.
 
+![Example Grid](example_grid.png)
+
 ## Features
 
 - Generate 30 unique emotional expressions from one input image
