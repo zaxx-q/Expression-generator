@@ -103,6 +103,17 @@ your-custom-api-key-here
 
 Place your character image in the same directory and name it `input.png` (or `.jpg`, `.jpeg`, `.webp`, etc.)
 
+#### Best Practices for Input Image
+
+For optimal results, your input image should have:
+
+- **Neutral expression** - A calm, neutral facial expression works best as the base
+- **Neutral pose** - Not overly posed or dynamic; a natural, relaxed stance
+
+**Important**: This input image sets the style and quality for all generated expressions. The core image should be really clear and really accurate to the character, as all other expressions will follow this style. Make sure you're happy with how it looks before proceeding.
+
+Some users prefer to use an A-pose for the basic expression, while others prefer something a little more in-character to start from. The choice of core pose is up to you - what matters most is that it's clear, accurate to your character, and represents the style you want all other expressions to follow. Having a good core expression will result in better quality expressions overall.
+
 ### Step 3: Run the Script
 
 ```bash
@@ -202,9 +213,10 @@ Add more API keys to your config.ini, or use keyboard shortcuts (`s` or `r`) to 
 
 ## Tips
 
-1. Start with a clear, well-lit base image
-2. Use multiple API keys to avoid rate limiting
-3. Experiment with custom prompt tweaks for specific styles
-4. Delete `expressions/orig__*.png` files to regenerate specific emotions
-5. Choose background type (grey/white) based on your use case
-6. If background removal isn't clean, use the `orig__*.png` files for manual editing
+1. Start with a clear, well-lit base image with neutral expression and pose
+2. Your input image sets the style for all expressions - make sure it's high quality
+3. Use multiple API keys to avoid rate limiting
+4. Experiment with custom prompt tweaks for specific styles
+5. Delete `expressions/orig__*.png` files to regenerate specific emotions
+6. Choose background type (grey/white) based on your use case
+7. If background removal isn't clean, use the `orig__*.png` files for manual editing
