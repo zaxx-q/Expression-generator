@@ -4,3 +4,4 @@ rembg==2.0.67   # or the rembg version you need
 pillow
 requests
 numpy
+onnxruntime
