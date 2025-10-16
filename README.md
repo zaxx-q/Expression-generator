@@ -16,7 +16,7 @@ Automatically generate multiple emotional expressions from a single character im
 
 ## Requirements
 
-- Python 3.13.7+
+- Python 3.13.7
 - API key for one of the supported providers:
   - OpenRouter
   - Google Gemini
@@ -31,8 +31,8 @@ Automatically generate multiple emotional expressions from a single character im
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone the repository
-git clone https://github.com/yourusername/expression-generator.git
-cd expression-generator
+git clone https://github.com/zaxx-q/Expression-generator.git
+cd Expression-generator
 
 # Create virtual environment and install dependencies
 uv venv
@@ -40,15 +40,15 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 uv pip install -r requirements.txt
 
 # Run the script
-python expression_generator.py
+python Expression-generator.py
 ```
 
 ### Using Standard venv
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/expression-generator.git
-cd expression-generator
+git clone https://github.com/zaxx-q/Expression-generator.git
+cd Expression-generator
 
 # Create virtual environment
 python -m venv venv
@@ -58,7 +58,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Run the script
-python expression_generator.py
+python Expression-generator.py
 ```
 
 ## Configuration
