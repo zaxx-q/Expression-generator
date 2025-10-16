@@ -69,36 +69,55 @@ Create a `config.ini` file in the same directory as the script:
 
 ```ini
 [config]
-# Choose your default provider (optional)
-default_provider = openrouter
+# -- AI Model Parameters (all optional - only include what you want to override) --
+# Controls randomness (0.0-2.0)
+# temperature = 0.7
+# Nucleus sampling (0.0-1.0)
+# top_p = 1.0
+# Max tokens to generate
+# max_tokens = 1000
+# Reduce repetition (-2.0 to 2.0)
+# frequency_penalty = 0
+# Encourage new topics (-2.0 to 2.0)
+# presence_penalty = 0
+# For reproducible outputs
+# seed = 42
 
-# Background type for generation (grey or white)
+# If you want to use a custom OpenAI-compatible API endpoint, set:
+# custom_url = "https://api.example.com/v1/chat/completions"
+custom_model = "gemini-2.5-flash-image-preview"
+
+# If you prefer to use a non-interactive provider selection in your script,
+# you can add a provider key here (optional):
+# values: openrouter | google | custom
+# default_provider = "custom"
+
+# Background type for prompt (grey or white)
 background_type = grey
 
-# Rembg preset for background removal
-# Options: anime, general, pixel, minecraft, real-life, people
+# rembg preset (anime, general, pixel, minecraft, real-life, people)
 rembg_preset = anime
 
-# AI parameters (optional)
-# temperature = 0.7
-# top_p = 1.0
-# max_tokens = 1000
+# rembg model (overrides preset model if set)
+# rembg_model = isnet-anime
 
-[openrouter]
-# Add your OpenRouter API keys (one per line)
-sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-sk-or-v1-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
 
-[google]
-# Add your Google Gemini API keys (one per line)
-AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ============================
 
 [custom]
-# For custom OpenAI-compatible APIs
-# Also add to [config] section:
-# custom_url = https://api.example.com/v1/chat/completions
-# custom_model = gemini-2.5-flash-image-preview
-your-custom-api-key-here
+# Custom API keys (one per line) for a user-provided OpenAI-compatible endpoint.
+# The script will send these as Authorization: Bearer <key>.
+sk-....
+
+
+[openrouter]
+# OpenRouter API keys (one per line). These are the Bearer tokens used in Authorization: Bearer <key>
+sk-....
+
+[google]
+# Google (Gemini) API keys (one per line).
+# These are the simple API keys passed in the x-goog-api-key header for the REST generateContent endpoint.
+sk-....
 ```
 
 ### Step 2: Prepare Input Image
