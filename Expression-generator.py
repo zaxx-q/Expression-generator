@@ -30,28 +30,54 @@ def remove_bg_highres(img: Image.Image) -> Image.Image:
         result = result.resize(img.size, Image.LANCZOS)
     return result
 
-# Find input file with any supported extension
+# ============================================================================
+# MULTI-IMAGE INPUT SUPPORT
+# ============================================================================
+# Find input files with pattern: input0.ext, input1.ext, input2.ext, etc.
 SUPPORTED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif', 'tiff', 'tif']
-INPUT_FILE_PATH = None
+INPUT_FILE_PATHS = []
 
-# Search for input file
-for ext in SUPPORTED_EXTENSIONS:
-    # Check both lowercase and uppercase extensions
-    for pattern in [f"input.{ext}", f"input.{ext.upper()}"]:
-        matches = glob.glob(pattern)
-        if matches:
-            INPUT_FILE_PATH = matches[0]
+print("="*60)
+print("Searching for input images...")
+print("="*60)
+
+# Look for input0.ext, input1.ext, input2.ext, etc.
+index = 0
+while True:
+    found = False
+    for ext in SUPPORTED_EXTENSIONS:
+        for pattern in [f"input{index}.{ext}", f"input{index}.{ext.upper()}"]:
+            matches = glob.glob(pattern)
+            if matches:
+                INPUT_FILE_PATHS.append(matches[0])
+                found = True
+                break
+        if found:
             break
-    if INPUT_FILE_PATH:
+    
+    # Stop searching if we didn't find the current index
+    # (assumes sequential numbering)
+    if not found:
         break
+    index += 1
 
-if not INPUT_FILE_PATH:
-    print(f"[Error] No input file found!")
-    print(f"Please provide an input file named 'input.{{extension}}' where extension can be:")
-    print(f"  {', '.join(SUPPORTED_EXTENSIONS)}")
+# Validate that we found at least one input file
+if not INPUT_FILE_PATHS:
+    print(f"\n[Error] No input file found!")
+    print(f"\nPlease provide input file(s) with the following naming pattern:")
+    print(f"  - Single image: 'input0.{{ext}}'")
+    print(f"  - Multiple images: 'input0.{{ext}}', 'input1.{{ext}}', 'input2.{{ext}}', etc.")
+    print(f"\nSupported extensions: {', '.join(SUPPORTED_EXTENSIONS)}")
     raise SystemExit("No input file found")
 
-print(f"Using input file: {INPUT_FILE_PATH}")
+print(f"\nFound {len(INPUT_FILE_PATHS)} input image(s):")
+for i, path in enumerate(INPUT_FILE_PATHS):
+    file_size = os.path.getsize(path) / 1024  # Size in KB
+    with Image.open(path) as img:
+        print(f"  [{i}] {path} - {img.size[0]}x{img.size[1]} pixels ({file_size:.1f} KB)")
+
+print("="*60 + "\n")
+# ============================================================================
 
 EMOTIONS = {
     "admiration": "warm admiration directed towards the viewer",
@@ -356,7 +382,23 @@ def image_to_data_url(path: str) -> str:
         print(f"[Error] Failed to load image from {path}: {e}")
         raise
 
-DATA_URL = image_to_data_url(INPUT_FILE_PATH)
+# ============================================================================
+# CREATE DATA URLs FOR ALL INPUT IMAGES
+# ============================================================================
+DATA_URLS = []
+print("Converting input images to data URLs...")
+for i, input_path in enumerate(INPUT_FILE_PATHS):
+    try:
+        data_url = image_to_data_url(input_path)
+        DATA_URLS.append(data_url)
+        print(f"  [{i}] {input_path} -> converted")
+    except Exception as e:
+        print(f"[Error] Failed to process {input_path}: {e}")
+        raise SystemExit(f"Failed to process input file: {input_path}")
+
+print(f"\nSuccessfully loaded {len(DATA_URLS)} input image(s)")
+print("="*60 + "\n")
+# ============================================================================
 
 def decode_data_url_to_png_bytes(data_url: str) -> bytes:
     """Decode data URL to PNG bytes, handling various input formats"""
@@ -664,7 +706,7 @@ def generate_for_emotion(key: str, desc: str, remove_bg: bool, custom_tweak: str
 
 def _call_api_for_emotion(key: str, desc: str, custom_tweak: str = ""):
     """Helper function to call the API and return image bytes"""
-    global KEY_MANAGER, API_PROVIDER, API_URL, API_MODEL, AI_PARAMS, FAILED_DOWNLOADS
+    global KEY_MANAGER, API_PROVIDER, API_URL, API_MODEL, AI_PARAMS, FAILED_DOWNLOADS, DATA_URLS
     
     retry_count = 0
     max_retries = 5  # Max number of user-initiated retries
@@ -680,14 +722,31 @@ def _call_api_for_emotion(key: str, desc: str, custom_tweak: str = ""):
             bg_desc = "an entirely white background"
         else:
             bg_desc = "a neutral middle grey coloured background"
-        base_prompt = (
-            "Please convert this image in the same aspect ratio and style as the original, "
-            "change the default pose, be creative with the poses, "
-            "common visual tropes are acceptable, convey the emotions clearly with body language and expressions, "
-            "do not make multiple variations in one image, "
-            f"always with {bg_desc} "
-            "so that it demonstrates {desc}."
-        )
+        
+        # ========================================================================
+        # MULTI-IMAGE PROMPT ADAPTATION
+        # ========================================================================
+        if len(DATA_URLS) > 1:
+            base_prompt = (
+                f"Please convert {'these images' if len(DATA_URLS) > 1 else 'this image'} in the same aspect ratio and style as the original, "
+                "change the default pose, be creative with the poses, "
+                "common visual tropes are acceptable, convey the emotions clearly with body language and expressions, "
+                "do not make multiple variations in one image, "
+                f"always with {bg_desc} "
+                "so that it demonstrates {desc}. "
+                f"Note: You are provided with {len(DATA_URLS)} reference image(s) - use them all as reference for style, character, and composition."
+            )
+        else:
+            base_prompt = (
+                "Please convert this image in the same aspect ratio and style as the original, "
+                "change the default pose, be creative with the poses, "
+                "common visual tropes are acceptable, convey the emotions clearly with body language and expressions, "
+                "do not make multiple variations in one image, "
+                f"always with {bg_desc} "
+                "so that it demonstrates {desc}."
+            )
+        # ========================================================================
+        
         final_prompt = base_prompt.format(desc=desc)
         if current_custom_tweak:
             final_prompt += f" Additional instruction: {current_custom_tweak}"
@@ -695,7 +754,7 @@ def _call_api_for_emotion(key: str, desc: str, custom_tweak: str = ""):
         # Output the exact prompt being sent
         if retry_count > 0:
             print(f"  > Retry attempt {retry_count}")
-        print(f"  > Sending prompt to AI:\n    \"{final_prompt}\"")
+        print(f"  > Sending prompt to AI ({len(DATA_URLS)} image(s)):\n    \"{final_prompt}\"")
 
         # API call with retry logic
         response = None
@@ -716,18 +775,22 @@ def _call_api_for_emotion(key: str, desc: str, custom_tweak: str = ""):
                 current_key_number = KEY_MANAGER.get_key_number()
                 print(f"  > Calling {API_PROVIDER} API with key #{current_key_number}... (Attempt {attempt + 1}/{max_tries})")
                 
-                # Build different payloads depending on provider
+                # ================================================================
+                # BUILD PAYLOAD WITH MULTIPLE IMAGES
+                # ================================================================
                 if API_PROVIDER == "openrouter" or API_PROVIDER == "custom":
                     headers = {"Authorization": f"Bearer {current_key}", "Content-Type": "application/json"}
+                    
+                    # Build content with text first, then all images
+                    content = [{"type": "text", "text": final_prompt}]
+                    for data_url in DATA_URLS:
+                        content.append({"type": "image_url", "image_url": {"url": data_url}})
                     
                     payload = {
                         "model": API_MODEL,
                         "messages": [{
                             "role": "user",
-                            "content": [
-                                {"type": "text", "text": final_prompt},
-                                {"type": "image_url", "image_url": {"url": DATA_URL}},
-                            ],
+                            "content": content,
                         }],
                     }
                     # Add AI parameters from config (only those explicitly set)
@@ -744,19 +807,20 @@ def _call_api_for_emotion(key: str, desc: str, custom_tweak: str = ""):
                     # Google Gemini REST call: use x-goog-api-key header and generateContent format
                     headers = {"x-goog-api-key": current_key, "Content-Type": "application/json"}
                     
-                    # Extract mime and b64 from DATA_URL
-                    m = re.match(r"^data:([^;]+);base64,(.+)$", DATA_URL)
-                    if not m:
-                        print("[Error] Could not parse local DATA_URL for inline image data.")
-                        return None
-                    mime = m.group(1)
-                    img_b64 = m.group(2)
+                    # Build parts with all images first, then text prompt
+                    parts = []
+                    for data_url in DATA_URLS:
+                        # Extract mime and b64 from DATA_URL
+                        m = re.match(r"^data:([^;]+);base64,(.+)$", data_url)
+                        if not m:
+                            print("[Error] Could not parse DATA_URL for inline image data.")
+                            return None
+                        mime = m.group(1)
+                        img_b64 = m.group(2)
+                        parts.append({"inline_data": {"mime_type": mime, "data": img_b64}})
                     
-                    # Build parts as inline_data first, then text prompt (for editing workflows)
-                    parts = [
-                        {"inline_data": {"mime_type": mime, "data": img_b64}},
-                        {"text": final_prompt}
-                    ]
+                    # Add text prompt at the end
+                    parts.append({"text": final_prompt})
                     
                     payload = {
                         "contents": [
@@ -782,6 +846,8 @@ def _call_api_for_emotion(key: str, desc: str, custom_tweak: str = ""):
                         payload["generation_config"] = gen_conf
                     
                     response = requests.post(API_URL, headers=headers, data=json.dumps(payload), timeout=300)
+                # ================================================================
+                
                 else:
                     print(f"[Error] Unknown API provider: {API_PROVIDER}")
                     return None

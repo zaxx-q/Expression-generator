@@ -1,12 +1,13 @@
 # Expression Generator
 
-Automatically generate multiple emotional expressions from a single character image using AI image generation APIs.
+Automatically generate multiple emotional expressions from one or more character images using AI image generation APIs.
 
 ![Example Grid](example_grid.png)
 
 ## Features
 
-- Generate 30 unique emotional expressions from one input image
+- Generate 30 unique emotional expressions from input image(s)
+- **Support for multiple reference images** - provide additional angles, poses, or style references
 - Support for OpenRouter, Google Gemini, and custom OpenAI-compatible APIs
 - Smart API key rotation to handle rate limits
 - Automatic background removal with rembg
@@ -120,25 +121,74 @@ sk-....
 sk-....
 ```
 
-### Step 2: Prepare Input Image
+### Step 2: Prepare Input Image(s)
 
-Place your character image in the same directory and name it `input.png` (or `.jpg`, `.jpeg`, `.webp`, etc.)
+Place your character image(s) in the same directory using the following naming pattern:
 
-#### Best Practices for Input Image
+#### Single Image
 
-For optimal results, your input image should have:
+```
+input0.png
+```
+
+#### Multiple Images
+
+```
+input0.png     # Primary/main reference
+input1.png     # Additional reference
+input2.png     # Additional reference
+input3.png     # Additional reference
+...
+```
+
+**Supported extensions**: `png`, `jpg`, `jpeg`, `webp`, `bmp`, `gif`, `tiff`, `tif`
+
+**Note**: Images must be numbered sequentially starting from 0. The script will automatically detect and use all numbered input files found.
+
+#### Best Practices for Input Images
+
+For optimal results, your primary input image (`input0.png`) should have:
 
 - **Neutral expression** - A calm, neutral facial expression works best as the base
 - **Neutral pose** - Not overly posed or dynamic; a natural, relaxed stance
 
-**Important**: This input image sets the style and quality for all generated expressions. The core image should be really clear and really accurate to the character, as all other expressions will follow this style. Make sure you're happy with how it looks before proceeding.
+**Important**: The input image sets the style and quality for all generated expressions. The core image should be really clear and really accurate to the character, as all other expressions will follow this style. Make sure you're happy with how it looks before proceeding.
 
 Some users prefer to use an A-pose for the basic expression, while others prefer something a little more in-character to start from. The choice of core pose is up to you - what matters most is that it's clear, accurate to your character, and represents the style you want all other expressions to follow. Having a good core expression will result in better quality expressions overall.
+
+#### Using Multiple Reference Images
+
+When providing multiple images:
+
+- **First image** (`input0.png`) should be your primary reference with neutral expression
+- **Additional images** (`input1.png`, `input2.png`, etc.) can show:
+  - Different angles (front view, side view, 3/4 view)
+  - Different poses to demonstrate character proportions
+  - Close-ups of facial features or details
+  - Style reference images
+  - Different lighting conditions
+
+**Example use cases:**
+- Provide a front view + side view for better 3D understanding
+- Include a full-body shot + close-up portrait for detail
+- Add style reference images to maintain consistent art style
+- Show character with different accessories or outfits that should be preserved
+
+The AI will use all provided images as reference to better understand your character's design, style, and details.
 
 ### Step 3: Run the Script
 
 ```bash
 python expression_generator.py
+```
+
+The script will automatically detect and display all input images found:
+
+```
+Found 3 input image(s):
+  [0] input0.png - 1024x1024 pixels (256.3 KB)
+  [1] input1.png - 1024x1024 pixels (248.7 KB)
+  [2] input2.png - 512x768 pixels (128.5 KB)
 ```
 
 ## Output Structure
@@ -213,7 +263,9 @@ sk-or-v1-key3-zzzzzzzzzzzzz
 
 ### No input file found
 
-Ensure you have an image file named `input.[extension]` in the same directory.
+Ensure you have at least one image file named `input0.[extension]` in the same directory. For multiple images, use sequential numbering: `input0.png`, `input1.png`, `input2.png`, etc.
+
+Supported extensions: `png`, `jpg`, `jpeg`, `webp`, `bmp`, `gif`, `tiff`, `tif`
 
 ### No API keys found
 
@@ -234,10 +286,12 @@ Add more API keys to your config.ini, or use keyboard shortcuts (`s` or `r`) to 
 
 ## Tips
 
-1. Start with a clear, well-lit base image with neutral expression and pose
-2. Your input image sets the style for all expressions - make sure it's high quality
-3. Use multiple API keys to avoid rate limiting
-4. Experiment with custom prompt tweaks for specific styles
-5. Delete `expressions/orig__*.png` files to regenerate specific emotions
-6. Choose background type (grey/white) based on your use case
-7. If background removal isn't clean, use the `orig__*.png` files for manual editing
+1. Start with a clear, well-lit base image with neutral expression and pose as `input0.png`
+2. Your input images sets the style for all expressions - make sure it's high quality
+3. When using multiple images, ensure they're all of the same character in consistent style
+4. Number your images sequentially starting from 0 (input0, input1, input2, ...)
+5. Use multiple API keys to avoid rate limiting
+6. Experiment with custom prompt tweaks for specific styles
+7. Delete `expressions/orig__*.png` files to regenerate specific emotions
+8. Choose background type (grey/white) based on your use case
+9. If background removal isn't clean, use the `orig__*.png` files for manual editing
