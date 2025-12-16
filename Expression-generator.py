@@ -138,6 +138,11 @@ REMBG_BASE=2048     # Increased from 1024 for better quality on larger images
 REMBG_POST_MASK=True
 BACKGROUND_TYPE = 'grey'
 
+# WebP Configuration
+WEBP_QUALITY = 95
+WEBP_METHOD = 6
+WEBP_LOSSLESS = False
+
 OUT_DIR = Path("expressions")
 OUT_DIR.mkdir(exist_ok=True)
 
@@ -523,6 +528,7 @@ def remove_background(png_bytes: bytes) -> bytes:
     """
     Prefer rembg (ISNet/U²-Net) for high-quality matting.
     Falls back to simple white-threshold method if rembg is unavailable/errors.
+    Returns WebP bytes.
     """
 
     if HAVE_REMBG:
@@ -538,13 +544,19 @@ def remove_background(png_bytes: bytes) -> bytes:
                 alpha_matting_base_size=REMBG_BASE,
                 post_process_mask=REMBG_POST_MASK,
             )
-            return out  # already PNG bytes with RGBA
+            # Convert the returned PNG bytes to WebP
+            with Image.open(BytesIO(out)) as im:
+                buf = BytesIO()
+                im.save(buf, format="WEBP", quality=WEBP_QUALITY, method=WEBP_METHOD, lossless=WEBP_LOSSLESS)
+                return buf.getvalue()
         except Exception as e:
             print(f"[warn] rembg failed ({e}); using white-knockout fallback.")
 
     with Image.open(BytesIO(png_bytes)) as im:
         im = _knock_out_white_bg_fallback(im, tol=28)
-        buf = BytesIO(); im.save(buf, format="PNG"); return buf.getvalue()
+        buf = BytesIO()
+        im.save(buf, format="WEBP", quality=WEBP_QUALITY, method=WEBP_METHOD, lossless=WEBP_LOSSLESS)
+        return buf.getvalue()
 
 def is_rate_limit_error(error_msg, status_code=None):
     """Check if error is a rate limit error (429 or contains rate limit message)"""
@@ -655,10 +667,10 @@ def generate_for_emotion(key: str, desc: str, remove_bg: bool, custom_tweak: str
     - If background removal is enabled:
       - If expressions/orig__{key}.png exists, skip API call and reuse
       - Otherwise call API, cache as orig__{key}.png
-      - Apply background removal and save as {key}.png
+      - Apply background removal and save as {key}.webp
     - If background removal is disabled:
-      - If expressions/{key}.png exists, return existing path
-      - Otherwise call API and save directly as {key}.png (no orig__ file)
+      - If expressions/{key}.webp exists, return existing path
+      - Otherwise call API and save directly as {key}.webp (no orig__ file)
     """
     global KEY_MANAGER
     
@@ -667,8 +679,9 @@ def generate_for_emotion(key: str, desc: str, remove_bg: bool, custom_tweak: str
     # Different cache behavior based on background removal setting
     if remove_bg:
         # With background removal: use orig__ caching system
+        # Note: We keep original API output as PNG for maximum fidelity before processing
         orig_path = OUT_DIR / f"orig__{key}.png"
-        final_path = OUT_DIR / f"{key}.png"
+        final_path = OUT_DIR / f"{key}.webp"
         
         # If cached original exists, reuse it
         if orig_path.exists():
@@ -681,13 +694,13 @@ def generate_for_emotion(key: str, desc: str, remove_bg: bool, custom_tweak: str
             # Cache the original
             orig_path.write_bytes(png_bytes)
         
-        # Apply background removal
+        # Apply background removal (returns WebP bytes)
         processed_bytes = remove_background(png_bytes)
         final_path.write_bytes(processed_bytes)
         final_paths.append(str(final_path))
     else:
         # Without background removal: direct save only
-        final_path = OUT_DIR / f"{key}.png"
+        final_path = OUT_DIR / f"{key}.webp"
         
         # If final image exists, return it without regenerating
         if final_path.exists():
@@ -699,7 +712,12 @@ def generate_for_emotion(key: str, desc: str, remove_bg: bool, custom_tweak: str
             return []
         
         # Save directly as final image (no processing, no orig__ file)
-        final_path.write_bytes(png_bytes)
+        # Convert PNG bytes from API to WebP
+        with Image.open(BytesIO(png_bytes)) as im:
+            buf = BytesIO()
+            im.save(buf, format="WEBP", quality=WEBP_QUALITY, method=WEBP_METHOD, lossless=WEBP_LOSSLESS)
+            final_path.write_bytes(buf.getvalue())
+            
         final_paths.append(str(final_path))
     
     return final_paths
@@ -1207,7 +1225,7 @@ def build_example_grid(emotion_keys: list[str], tile_img_h=512, caption_h=48, ga
     draw = ImageDraw.Draw(grid); font = _load_font(size=24)
 
     for idx, key in enumerate(emotion_keys):
-        img_path = OUT_DIR / f"{key}.png"
+        img_path = OUT_DIR / f"{key}.webp"
         with Image.open(img_path) as im:
             img_area = _fit_and_pad(im, tile_w, tile_img_h, bg=bg)
         r = idx // cols; c = idx % cols
@@ -1219,22 +1237,25 @@ def build_example_grid(emotion_keys: list[str], tile_img_h=512, caption_h=48, ga
         tx = x0 + (tile_w - text_w)//2; ty = y0 + tile_img_h + (caption_h - text_h)//2
         draw.text((tx, ty), caption, fill=(0,0,0), font=font)
 
-    out_path = Path("example_grid.png")
-    grid.save(out_path, format="PNG")
+    out_path = Path("example_grid.webp")
+    grid.save(out_path, format="WEBP", quality=WEBP_QUALITY, method=WEBP_METHOD, lossless=WEBP_LOSSLESS)
     return out_path
 
 def zip_expressions(zip_path: Path):
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         # Exclude original cached files from the zip
-        for p in sorted(OUT_DIR.glob("*.png")):
+        for p in sorted(OUT_DIR.glob("*.webp")):
             if not p.name.startswith("orig__"):
                 zf.write(p, arcname=p.name)
 
-def print_example_keys_file():
-    """Print an example config.ini file format"""
-    example = """
-# ========================================
-# Example config.ini file format:
+def create_default_config():
+    """Create a default config.ini file if it doesn't exist"""
+    config_path = Path("config.ini")
+    if config_path.exists():
+        return
+
+    example = """# ========================================
+# Expression Generator Configuration
 # ========================================
 
 [config]
@@ -1264,26 +1285,29 @@ def print_example_keys_file():
 
 [custom]
 # Your custom API keys (one per line)
-custom-key-xxxxxxxxxxxxx
-custom-key-yyyyyyyyyyyyy
+# custom-key-xxxxxxxxxxxxx
 
 [openrouter]
 # Your OpenRouter API keys (one per line)
-sk-or-v1-xxxxxxxxxxxxx
-sk-or-v1-yyyyyyyyyyyyy
+# sk-or-v1-xxxxxxxxxxxxx
 
 [google]
 # Your Google (Gemini) API keys (one per line)
 # Put the API key that you would normally pass in x-goog-api-key
-GOOGLE_API_KEY_XXXXXXXXXXXXXXXXXXXX
-
-# ========================================
+# GOOGLE_API_KEY_XXXXXXXXXXXXXXXXXXXX
 """
-    print(example)
+    try:
+        config_path.write_text(example, encoding='utf-8')
+        print(f"\n[Info] Created default configuration file: {config_path.absolute()}")
+    except Exception as e:
+        print(f"\n[Error] Failed to create default config file: {e}")
 
 def main():
     global KEY_MANAGER, API_PROVIDER, API_URL, API_MODEL, AI_PARAMS, CUSTOM_MODEL, REMBG_MODEL, REMBG_ALPHA_MATTING, REMBG_FG_THR, REMBG_BG_THR, REMBG_ERODE, REMBG_BASE, REMBG_POST_MASK, BACKGROUND_TYPE, FAILED_DOWNLOADS
     
+    # --- Ensure config.ini exists ---
+    create_default_config()
+
     # --- Choose API Provider ---
     print("="*60)
     print("API Provider Selection")
@@ -1421,7 +1445,7 @@ def main():
     
     if not api_keys:
         print(f"\n[Error] No {API_PROVIDER} API keys found in config.ini!")
-        print_example_keys_file()
+        print(f"Please add your API keys to the [{API_PROVIDER}] section in config.ini")
         raise SystemExit(f"No {API_PROVIDER} API keys found in config.ini")
     
     print(f"\nLoaded {len(api_keys)} {API_PROVIDER} API key(s) from config.ini")
@@ -1565,7 +1589,7 @@ def main():
 
     # 1) Generate any missing images
     for key, desc in EMOTIONS.items():
-        first_path = OUT_DIR / f"{key}.png"
+        first_path = OUT_DIR / f"{key}.webp"
         if first_path.exists():
             print(f"Skipping '{key}' (already has {first_path.name})")
             continue
@@ -1583,7 +1607,7 @@ def main():
         for p in paths: print(f"  saved {p}")
 
     # 2) Verify all required images exist
-    missing = [k for k in EMOTIONS.keys() if not (OUT_DIR / f"{k}.png").exists()]
+    missing = [k for k in EMOTIONS.keys() if not (OUT_DIR / f"{k}.webp").exists()]
     if missing:
         print("\nNot building grid/zip — missing first images for:", ", ".join(missing))
     
@@ -1605,7 +1629,7 @@ def main():
         return
 
     # 3) Build and save example grid
-    print("\nAll base images present. Building example_grid.png …")
+    print("\nAll base images present. Building example_grid.webp …")
     grid_path = build_example_grid(list(EMOTIONS.keys()))
     print(f"  saved {grid_path}")
 
