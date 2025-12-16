@@ -665,8 +665,8 @@ def generate_for_emotion(key: str, desc: str, remove_bg: bool, custom_tweak: str
     """
     Generate (or reuse cached) image for an emotion key.
     - If background removal is enabled:
-      - If expressions/orig__{key}.png exists, skip API call and reuse
-      - Otherwise call API, cache as orig__{key}.png
+      - If expressions/orig__{key}.webp exists, skip API call and reuse
+      - Otherwise call API, cache as orig__{key}.webp
       - Apply background removal and save as {key}.webp
     - If background removal is disabled:
       - If expressions/{key}.webp exists, return existing path
@@ -679,8 +679,7 @@ def generate_for_emotion(key: str, desc: str, remove_bg: bool, custom_tweak: str
     # Different cache behavior based on background removal setting
     if remove_bg:
         # With background removal: use orig__ caching system
-        # Note: We keep original API output as PNG for maximum fidelity before processing
-        orig_path = OUT_DIR / f"orig__{key}.png"
+        orig_path = OUT_DIR / f"orig__{key}.webp"
         final_path = OUT_DIR / f"{key}.webp"
         
         # If cached original exists, reuse it
@@ -688,9 +687,16 @@ def generate_for_emotion(key: str, desc: str, remove_bg: bool, custom_tweak: str
             png_bytes = orig_path.read_bytes()
         else:
             # Generate new image
-            png_bytes = _call_api_for_emotion(key, desc, custom_tweak)
-            if png_bytes is None:
+            png_bytes_api = _call_api_for_emotion(key, desc, custom_tweak)
+            if png_bytes_api is None:
                 return []
+            
+            # Convert API PNG bytes to WebP for caching
+            with Image.open(BytesIO(png_bytes_api)) as im:
+                buf = BytesIO()
+                im.save(buf, format="WEBP", quality=WEBP_QUALITY, method=WEBP_METHOD, lossless=WEBP_LOSSLESS)
+                png_bytes = buf.getvalue()
+                
             # Cache the original
             orig_path.write_bytes(png_bytes)
         
